@@ -76,6 +76,19 @@ def main():
             logger.error(e)
             return jsonify({"error": "Error fetching calendar"})
 
+        toggl_user_data = r.get('https://api.track.toggl.com/api/v9/me', auth=(toggl_token, 'api_token'))
+
+        if toggl_user_data.status_code != 200:
+            logger.error("Error fetching user data")
+            logger.error(f'Status code: {toggl_user_data.status_code}')
+            logger.error(f'Response: {toggl_user_data.text}')
+            return jsonify({"error": "Error fetching user data", "status_code": toggl_user_data.status_code,
+                            "response": toggl_user_data.text})
+
+        toggl_user_data = toggl_user_data.json()
+
+        toggl_user_tz = toggl_user_data['timezone']
+
         # Check the validity of the toggl token
         toggl_time_entries = r.get('https://api.track.toggl.com/api/v9/me/time_entries',
                                    auth=(toggl_token, 'api_token'), params={"start_date": start_date, "end_date": now})
@@ -106,6 +119,8 @@ def main():
         else:
             itr = last_run_entries[current_index:]
 
+        logger.info(f'Syncing {len(itr)} entries on {datetime.now()} on calendar: {calendar_id}')
+
         for entry in itr:
             if entry['duration'] < 0:
                 continue
@@ -114,7 +129,7 @@ def main():
                 entry['description'] = f"{entry['description']} #{' #'.join(tags)}"
             elif len(tags) == 1:
                 entry['description'] = f"{entry['description']} #{tags[0]}"
-            event = create_gcal_event(entry['description'], entry['start'], entry['stop'])
+            event = create_gcal_event(entry['description'], entry['start'], entry['stop'], toggl_user_tz)
             created_event = service.events().insert(
                 calendarId=calendar_id,
                 body=event).execute()

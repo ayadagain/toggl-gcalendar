@@ -1,12 +1,12 @@
-def create_gcal_event(summary, start, end):
+def create_gcal_event(summary, start, end, timezone='UTC'):
     return {
         'summary': summary,
         'start': {
             'dateTime': start,
-            'timeZone': 'UTC',
+            'timeZone': timezone,
         },
         'end': {
             'dateTime': end,
-            'timeZone': 'UTC',
+            'timeZone': timezone,
         },
     }
