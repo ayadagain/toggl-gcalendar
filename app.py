@@ -15,7 +15,6 @@ app = Flask(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/calendar']
 
-
 @app.route('/webhook', methods=['POST'])
 def main():
     try:
@@ -41,8 +40,12 @@ def main():
         # created automatically when the authorization flow completes for the first
         # time.
         file_name = f"{calendar_id.split('@')[0]}.pickle"
-        if os.path.exists('token.pickle'):
-            with open('token.pickle', 'rb') as token:
+        custom_path = os.path.abspath("/data")
+        token_path = os.path.join(custom_path, 'token.pickle')
+        last_entries_path = os.path.join(custom_path, file_name)
+
+        if os.path.exists(token_path):
+            with open(token_path, 'rb') as token:
                 creds = pickle.load(token)
         # If there are no (valid) credentials available, let the user log in.
         if not creds or not creds.valid:
@@ -53,11 +56,11 @@ def main():
                     'credentials.json', SCOPES)
                 creds = flow.run_local_server(port=0)
             # Save the credentials for the next run
-            with open('token.pickle', 'wb') as token:
+            with open(token_path, 'wb') as token:
                 pickle.dump(creds, token)
 
-        if os.path.exists(file_name):
-            with open(file_name, 'rb') as token:
+        if os.path.exists(last_entries_path):
+            with open(last_entries_path, 'rb') as token:
                 last_run_entries = json.loads(pickle.load(token))
 
         now = datetime.now().strftime('%Y-%m-%d')
@@ -87,7 +90,7 @@ def main():
         toggl_time_entries = toggl_time_entries.json()
 
         if last_run_entries is None:
-            with open(file_name, 'wb') as pkl:
+            with open(last_entries_path, 'wb') as pkl:
                 pickle.dump(json.dumps(toggl_time_entries), pkl)
             last_run_entries = toggl_time_entries
             first_run = True
@@ -116,7 +119,6 @@ def main():
                 calendarId=calendar_id,
                 body=event).execute()
             logger.success(f"Created event: {created_event['id']} on calendar: {calendar_id}")
-
         return jsonify({"status": "success"})
     except Exception as e:
         logger.error(e)
